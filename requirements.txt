@@ -1,0 +1,19 @@
+fastapi
+uvicorn[standard]
+pydantic>=2.8
+pydantic-settings
+httpx
+playwright
+qdrant-client
+celestia-node  # pip wrapper coming soon, we use subprocess for now
+groq
+openai
+anthropic
+fireworks-ai
+together
+python-dotenv
+jinja2
+latex  # texlive on Linux
+rich
+websockets
+watchdog
