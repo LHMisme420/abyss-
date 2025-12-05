@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ABYSS</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: system-ui; background: #000; color: #0f0; padding: 2rem; }
+    textarea, button { font-size: 1.2rem; padding: 1rem; width: 100%; margin: 1rem 0; }
+    #output { white-space: pre-wrap; background: #111; padding: 1rem; border: 1px solid #0f0; }
+  </style>
+</head>
+<body>
+  <h1>ABYSS</h1>
+  <textarea id="prompt" rows="3" placeholder="Drop your seed prompt here..."></textarea>
+  <button onclick="run()">AWAKEN THE SWARM</button>
+  <div id="output"></div>
+
+  <script>
+    async function run() {
+      const resp = await fetch("/run", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({prompt: document.getElementById("prompt").value || "default"})
+      });
+      const data = await resp.json();
+      document.getElementById("output").textContent = data.history;
+    }
+  </script>
+</body>
+</html>
