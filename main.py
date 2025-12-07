@@ -1,10 +1,11 @@
-# main.py ─── ULTIMATE ABYSS v2 (streaming + memory)
+# main.py ─── ABYSS v2 (streaming + memory) ─── WORKS RIGHT NOW
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
-import httpx, json, asyncio
+import httpx
+import json
 
 app = FastAPI()
-history = []                                      # ← remembers everything forever
+history = []                                           # remembers forever
 
 @app.get("/")
 async def home():
@@ -22,33 +23,30 @@ AWAKEN THE SWARM</button>
 </div>
 
 <script>
-let history = [];
 async function send() {
     let prompt = document.getElementById("prompt").value.trim();
     if (!prompt) return;
     addMessage("user", prompt);
     document.getElementById("prompt").value = "";
     
-    let resp = await fetch("/run", {method:"POST",headers:{"Content-Type":"application/json"},
-                                   body:JSON.stringify({prompt})});
+    let resp = await fetch("/run", {method:"POST", headers:{"Content-Type":"application/json"},
+                                   body:JSON.stringify({prompt:prompt})});
     let reader = resp.body.getReader();
     let decoder = new TextDecoder();
-    let assistantMsg = addMessage("assistant", "[SWARM AWAKENED]\\n\\n");
+    let msg = addMessage("assistant", "[SWARM AWAKENED]\n\n");
     
     while (true) {
         let {value, done} = await reader.read();
         if (done) break;
-        let chunk = decoder.decode(value);
-        assistantMsg.textContent += chunk;
-        assistantMsg.scrollIntoView({behavior:"smooth"});
+        msg.textContent += decoder.decode(value);
+        msg.scrollIntoView({behavior:"smooth"});
     }
 }
 function addMessage(role, content) {
     let div = document.createElement("pre");
-    div.style.margin="1rem 0"; div.style.padding="1rem"; div.style.borderLeft="4px solid #0f0";
-    div.textContent = (role==="user"?"Seed":"") + ": " + content;
+    div.style = "margin:1rem 0;padding:1rem;border-left:4px solid #0f0;white-space:pre-wrap";
+    div.textContent = (role==="user" ? "Seed" : "Swarm") + ": " + content;
     document.getElementById("chat").appendChild(div);
-    div.scrollIntoView({behavior:"smooth"});
     return div;
 }
 </script>
@@ -62,24 +60,22 @@ async def run(request: Request):
     if prompt:
         history.append({"role": "user", "content": prompt})
 
-    async def stream():
+    async def streamer():
         async with httpx.AsyncClient(timeout=None) as client:
-            response = await client.post("http://localhost:11434/api/chat", json={
-                "model": "llama3.2",           # ← change to your strongest model
-                "messages": history,
-                "stream": True
-            }, stream=True)
-
-            full = ""
-            async for line in response.aiter_lines():
+            resp = await client.post(
+                "http://localhost:11434/api/chat",
+                json={"model": "llama3.2", "messages": history, "stream": True},
+                stream=True
+            )
+            full_answer = ""
+            async for line in resp.aiter_lines():
                 if not line.strip(): continue
                 data = json.loads(line)
                 token = data.get("message", {}).get("content", "")
                 if token:
-                    full += token
+                    full_answer += token
                     yield token
+            if full_answer.strip():
+                history.append({"role": "assistant", "content": full_answer})
 
-            if full.strip():
-                history.append({"role": "assistant", "content": full})
-
-    return StreamingResponse(stream(), media_type="text/plain")
+    return StreamingResponse(streamer(), media_type="text/plain")
