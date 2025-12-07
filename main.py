@@ -1,37 +1,41 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-import random
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import uvicorn
+from evolution_engine import evolve_seed  # We'll build this next
+from persistence import init_db, add_lineage_entry
+from scheduler import start_autonomy_loop
 
-app = FastAPI()
-templates = Jinja2Templates(directory="templates")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app = FastAPI(title="ABYSS", version="0.1.2")
 
-fallback_responses = [
-    "Discovered: There are 25 primes under 100—next one's 101!",
-    "Critique: That's basic. Push to twin primes for novelty.",
-    "Code: def sieve(n): return [i for i in range(2, n) if all(i % j != 0 for j in range(2, int(i**0.5)+1))]",
-    "Evolving: Next round, add quantum-inspired randomness."
-]
+class SeedPrompt(BaseModel):
+    prompt: str
+    iterations: int = 3  # Default mutations
 
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+@app.post("/seed")
+async def submit_seed(seed: SeedPrompt):
+    try:
+        # Evolve the seed
+        results = await evolve_seed(seed.prompt, seed.iterations)
+        # Log to lineage
+        lineage_id = add_lineage_entry(seed.prompt, results)
+        return {"status": "evolved", "lineage_id": lineage_id, "outputs": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/run")
-async def run_swarm(request: Request):
-    body = await request.json()
-    seed = body.get("prompt", "Find truth")
-    history = f"Seed: {seed}\n\n"
-    agents = ["Researcher", "Critic", "Code Wizard", "Evolutor"]
+@app.get("/dashboard")
+async def dashboard():
+    # Fetch lineage tree from DB
+    tree = get_lineage_tree()  # Implement in persistence.py
+    return {"lineage": tree}
 
-    for r in range(6):
-        history += f"═══ ROUND {r+1} ═══\n"
-        for agent in agents:
-            text = random.choice(fallback_responses)
-            history += f"{agent}: {text}\n\n"
-        if random.random() > 0.5:
-            agents[-1] = "Quantum Evolutor"
+@app.on_event("startup")
+async def startup_event():
+    init_db()
+    start_autonomy_loop()  # Kicks off background evolution
 
-    return {"history": history}
+if __name__ == "__main__":
+    # Check for public IP warning
+    import os
+    if os.getenv("PUBLIC_IP", "false").lower() == "true":
+        print("WARNING: Running on public IP. Proceed with caution.")
+    uvicorn.run(app, host="0.0.0.0", port=8000)
