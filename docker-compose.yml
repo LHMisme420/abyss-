@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  abyss:
+    build: .
+    container_name: abyss-caged
+    restart: unless-stopped
+    # Zero trust: no ports exposed, only internal
+    # Access via: docker exec -it abyss-caged curl http://localhost:8000/docs
+    volumes:
+      - ./logs:/app/logs  # For lineage/audits
+      - ./seeds:/app/seeds  # Input prompts
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # For child containers (careful!)
+    environment:
+      - MAX_RUNTIME_HOURS=6
+      - API_TOKEN_BUCKET=10000000  # 10M tokens/day
+      - WHITELIST_IPS=127.0.0.1,::1
+      - YUBIKEY_REQUIRED=true  # For high-risk actions
+    cap_drop:
+      - ALL  # Drop all capabilities
+    cap_add:
+      - CHOWN  # Minimal for file ops
+    security_opt:
+      - no-new-privileges:true
+    read_only: true  # Everything else mounted read-only where possible
+    tmpfs:
+      - /tmp:mode=1777,size=1G  # Ephemeral workspace
+
+  watchdog:
+    image: python:3.12-slim
+    container_name: abyss-watchdog
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./watchdog.py:/watchdog.py
+    command: python /watchdog.py
+    privileged: false  # Runs outside, monitors host/container metrics
+    depends_on:
+      - abyss
