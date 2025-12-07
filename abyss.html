@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<body style="margin:0;background:#000;color:#0f0;font-family:monospace;height:100vh;display:flex;flex-direction:column">
+<h1 style="text-align:center;background:#111;padding:1rem">ABYSS // SWARM</h1>
+<div id="chat" style="flex:1;overflow:auto;padding:1rem"></div>
+<div style="padding:1rem;background:#111;border-top:2px solid #0f0">
+<textarea id="prompt" rows="3" placeholder="Drop your seed..." style="width:100%;background:#000;color:#0f0;border:1px solid #0f0"></textarea><br><br>
+<button onclick="send()" style="width:100%;padding:1.5rem;background:#0f0;color:#000;border:none;font-size:1.5rem;font-weight:bold">AWAKEN THE SWARM</button>
+</div>
+<script>
+async function send(){let p=document.getElementById("prompt").value.trim();if(!p)return;document.getElementById("chat").innerHTML+=`<pre style="border-left:4px solid #0f0;padding:1rem;margin:1rem 0">Seed: ${p}</pre>`;document.getElementById("prompt").value="";let r=await fetch("/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:p})});let reader=r.body.getReader();let d=new TextDecoder();let m=document.createElement("pre");m.style="border-left:4px solid #0f0;padding:1rem;margin:1rem 0";m.textContent="Swarm: [AWAKENED]\n\n";document.getElementById("chat").appendChild(m);while(true){let{v,done}=await reader.read();if(done)break;m.textContent+=d.decode(v);m.scrollIntoView()}}
+</script>
+</body></html>
