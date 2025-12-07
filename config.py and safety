@@ -1,0 +1,9 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+LLM_API_KEY = os.getenv("LLM_API_KEY")
+PUBLIC_IP = os.getenv("PUBLIC_IP", "false")
+
+if PUBLIC_IP == "true":
+    print("ABYSS WARNING: Public exposure enabled. Bind wisely.")
