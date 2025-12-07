@@ -1,11 +1,11 @@
-# main.py ─── ABYSS v2 (streaming + memory) ─── WORKS RIGHT NOW
+# main.py ─── FIXED: NO MORE REPEATING
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 import httpx
 import json
 
 app = FastAPI()
-history = []                                           # remembers forever
+history = []
 
 @app.get("/")
 async def home():
@@ -64,18 +64,23 @@ async def run(request: Request):
         async with httpx.AsyncClient(timeout=None) as client:
             resp = await client.post(
                 "http://localhost:11434/api/chat",
-                json={"model": "llama3.2", "messages": history, "stream": True},
+                json={
+                    "model": "llama3.2",
+                    "messages": history,
+                    "stream": True,
+                    "options": {"temperature": 1.0, "repeat_penalty": 1.2}   # ← THIS LINE KILLS REPEATING
+                },
                 stream=True
             )
-            full_answer = ""
+            full = ""
             async for line in resp.aiter_lines():
                 if not line.strip(): continue
                 data = json.loads(line)
                 token = data.get("message", {}).get("content", "")
                 if token:
-                    full_answer += token
+                    full += token
                     yield token
-            if full_answer.strip():
-                history.append({"role": "assistant", "content": full_answer})
+            if full.strip():
+                history.append({"role": "assistant", "content": full})
 
     return StreamingResponse(streamer(), media_type="text/plain")
